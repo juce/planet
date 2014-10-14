@@ -15,6 +15,7 @@ function setup()
     print("Hello Planet!")
     
     uri = "https://khms1.google.com/kh/v=159&x=%s&y=%s&z=%s"
+
     z = 2
     w,h = 2^z,2^z
     c = {x=w/2, y=h/2}
@@ -23,15 +24,12 @@ function setup()
     tiles = {}
     pt = nil
     
-    shift = {x=WIDTH/2-(c.x-l)*256, y=HEIGHT/2-(c.y-t)*256}
-    drag = {x=0, y=0}
-    
     touches = {}
     tscale = 1.0
 
     parameter.watch("z")
-    parameter.watch("shift.x")
-    parameter.watch("shift.y")
+    parameter.watch("c.x")
+    parameter.watch("c.y")
 end
 
 function str(t)
@@ -99,23 +97,19 @@ function draw_tile(z, x, y)
     --text(key, sx+128, sy+128)
 end
 
--- This function gets called once every frame
 function draw()
-    -- This sets a dark background color 
     background(40, 40, 50)
 
-    noSmooth()
-    
     if not pt then
         pt = draw_placeholder()
     end
 
-    -- Do your drawing here
-    shift.x, shift.y = WIDTH/2/tscale-(c.x-l)*256, HEIGHT/2/tscale-(c.y-t)*256
-    
     scale(tscale)
-    translate(math.floor(shift.x), -math.floor(shift.y))
+    translate(
+        math.floor(WIDTH/2/tscale-(c.x-l)*256), 
+        -math.floor(HEIGHT/2/tscale-(c.y-t)*256))
 
+    noSmooth()
     spriteMode(CORNER)
     local sx,sy
     for y=t,b do
@@ -127,12 +121,15 @@ function draw()
 end
 
 function discard(z,l,r,t,b)
+    -- discard specific tile images
+    -- to keep memory usage under control
     for x=l,r do
         for y=t,b do
             local key = z.."/"..x.."/"..y
             tiles[key] = nil
         end
     end
+    collectgarbage()
 end
 
 function touched(touch)
@@ -144,11 +141,7 @@ function touched(touch)
         clean(touches)
     end
     
-    if touch.state == BEGAN then
-        lastTouch = CurrentTouch
-    end
-    
-    -- zoom in
+    -- check for pinch/expand gestures
     local zt = {}
     for k,v in pairs(touches) do
         table.insert(zt, v)
@@ -170,7 +163,6 @@ function touched(touch)
     if tscale >= 2.0 and touch.state == ENDED and z < 19 then
         tscale = 1.0
         discard(z,l,r,t,b)
-        collectgarbage()
         -- zoom in
         z = z + 1
         w,h = 2^z,2^z
@@ -182,7 +174,6 @@ function touched(touch)
     elseif tscale <= 0.5 and touch.state == ENDED and z > 0 then
         tscale = 1.0
         discard(z,l,r,t,b)
-        collectgarbage()
         -- zoom out
         z = z - 1
         w,h = 2^z,2^z
