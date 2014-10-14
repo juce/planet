@@ -15,7 +15,7 @@ function setup()
     print("Hello Planet!")
     
     uri = "https://khms1.google.com/kh/v=159&x=%s&y=%s&z=%s"
-    z = 3
+    z = 2
     w,h = 2^z,2^z
     c = {x=w/2, y=h/2}
     l,r,t,b = getBounds(c)
@@ -27,15 +27,11 @@ function setup()
     drag = {x=0, y=0}
     
     touches = {}
-    tv = 0
-    --parameter.watch("str(touches)")
-    --parameter.watch("tv")
-    parameter.watch("state()")
+    tscale = 1.0
+
+    parameter.watch("z")
     parameter.watch("shift.x")
     parameter.watch("shift.y")
-    --parameter.watch("num(tiles)")
-    --parameter.watch("CurrentTouch.deltaX")
-    --parameter.watch("CurrentTouch.deltaY")
 end
 
 function str(t)
@@ -93,10 +89,10 @@ function draw_tile(z, x, y)
                 end
             end)
         end  
-        tile = pt   
+        tiles[key], tile = pt, pt
     end
     local sx = (x-l)*256
-    local sy = HEIGHT-(y-t+1)*256
+    local sy = HEIGHT/tscale-(y-t+1)*256
     sprite(tile, sx, sy)
     --smooth()
     --fill(232, 226, 226, 255)
@@ -115,9 +111,11 @@ function draw()
     end
 
     -- Do your drawing here
-    shift.x, shift.y = math.floor(WIDTH/2-(c.x-l)*256), math.floor(HEIGHT/2-(c.y-t)*256)
-    translate(shift.x, -shift.y)
+    shift.x, shift.y = WIDTH/2/tscale-(c.x-l)*256, HEIGHT/2/tscale-(c.y-t)*256
     
+    scale(tscale)
+    translate(math.floor(shift.x), -math.floor(shift.y))
+
     spriteMode(CORNER)
     local sx,sy
     for y=t,b do
@@ -146,24 +144,31 @@ function touched(touch)
         clean(touches)
     end
     
+    if touch.state == BEGAN then
+        lastTouch = CurrentTouch
+    end
+    
     -- zoom in
     local zt = {}
     for k,v in pairs(touches) do
         table.insert(zt, v)
     end
-    if #zt == 2 and touch.state == MOVING then
-        local a, b = zt[1], zt[2]
-        local v1 = vec2(a.prevX, a.prevY)
-        local v2 = vec2(b.prevX, b.prevY)
-        local val = v1:distSqr(v2)
-        v1 = vec2(a.x, a.y)
-        v2 = vec2(b.x, b.y)
-        val = v1:distSqr(v2) - val
-        tv = tv + val 
+    if #zt == 2 then
+        local a,b = zt[1],zt[2]
+        if touch.state == BEGAN then
+            local v1 = vec2(a.x, a.y)
+            local v2 = vec2(b.x, b.y)
+            sd = v1:dist(v2) 
+        elseif touch.state == MOVING then
+            local v1 = vec2(a.x, a.y)
+            local v2 = vec2(b.x, b.y)
+            tscale = v1:dist(v2)/sd
+            tscale = math.max(0.5,math.min(2,tscale))
+        end
     end
     
-    if tv > 200000 and touch.state == ENDED and z < 20 then
-        tv = 0
+    if tscale >= 2.0 and touch.state == ENDED and z < 19 then
+        tscale = 1.0
         discard(z,l,r,t,b)
         collectgarbage()
         -- zoom in
@@ -174,8 +179,8 @@ function touched(touch)
         l,r,t,b = getBounds(c)
         return
         
-    elseif tv < -200000 and touch.state == ENDED and z > 3 then
-        tv = 0
+    elseif tscale <= 0.5 and touch.state == ENDED and z > 0 then
+        tscale = 1.0
         discard(z,l,r,t,b)
         collectgarbage()
         -- zoom out
@@ -191,25 +196,23 @@ function touched(touch)
     if touch.state == MOVING then       
         c.x = c.x - touch.deltaX/256
         c.y = c.y + touch.deltaY/256      
-        local nl = math.floor(c.x)-3
+        nl,nr,nt,nb = getBounds(c)
         if nl>l then
             discard(z,l,l,t,b)
         elseif nl<l then
             discard(z,r,r,t,b)
         end
-        l,r = nl,nl + 6
-        local nt = math.floor(c.y)-2
+        l,r = nl,nr
         if nt>t then
             discard(z,l,r,t,t)
         elseif nt<t then
             discard(z,l,r,b,b)
         end
-        t,b = nt,nt + 4
+        t,b = nt,nb
     end
     
     if touch.state == ENDED then
-        --tween(0.5, c, {x = c.x - 2*touch.deltaX/256, y = c.y + 2*touch.deltaY/256})
-        tv = 0
+        tscale = 1.0
     end
 end
 
