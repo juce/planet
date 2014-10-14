@@ -1,6 +1,14 @@
 -- Planet
 
-displayMode(FULLSCREEN)
+displayMode(OVERLAY)
+
+function getBounds(c)
+    local l = math.floor(c.x)-3
+    local r = l + 5
+    local t = math.floor(c.y)-2
+    local b = t + 4
+    return l,r,t,b
+end
 
 -- Use this function to perform your initial setup
 function setup()
@@ -9,19 +17,25 @@ function setup()
     uri = "https://khms1.google.com/kh/v=159&x=%s&y=%s&z=%s"
     z = 3
     w,h = 2^z,2^z
-    l,r = 1,6
-    t,b = 2,5
+    c = {x=w/2, y=h/2}
+    l,r,t,b = getBounds(c)
+    
     tiles = {}
     pt = nil
     
-    shift = {x=WIDTH/2-(r-l+1)/2*256, y=HEIGHT/2-(b-t+1)/2*256}
+    shift = {x=WIDTH/2-(c.x-l)*256, y=HEIGHT/2-(c.y-t)*256}
     drag = {x=0, y=0}
     
     touches = {}
     tv = 0
     --parameter.watch("str(touches)")
     --parameter.watch("tv")
-    --parameter.watch("bounds()")
+    parameter.watch("state()")
+    parameter.watch("shift.x")
+    parameter.watch("shift.y")
+    --parameter.watch("num(tiles)")
+    --parameter.watch("CurrentTouch.deltaX")
+    --parameter.watch("CurrentTouch.deltaY")
 end
 
 function str(t)
@@ -32,8 +46,16 @@ function str(t)
     return table.concat(tt,"\n")
 end
 
-function bounds()
-    return string.format("z=%s,l=%s,r=%s,t=%s,b=%s",z,l,r,t,b)
+function state()
+    return string.format("z=%s,c.x=%s,c.y=%s",z,c.x,c.y)
+end
+
+function num(t)
+    local c = 0
+    for k,v in pairs(t) do
+        c = c + 1
+    end
+    return c
 end
 
 function clean(t)
@@ -63,18 +85,20 @@ function draw_tile(z, x, y)
     local key = z .. "/" .. x .. "/" .. y
     local tile = tiles[key]
     if not tile then
-        print("downloading tile: ",z,x,y)
-        http.request(string.format(uri, x, y, z), function(data, status, headers)
-            if tonumber(status) == 200 then
-                tiles[key] = data
-            end
-        end)
-        tiles[key],tile = pt,pt     
+        if x>=0 and x<w and y>=0 and y<h then
+            print("downloading tile: ",z,x,y)
+            http.request(string.format(uri, x, y, z), function(data, status, headers)
+                if tonumber(status) == 200 then
+                    tiles[key] = data
+                end
+            end)
+        end  
+        tile = pt   
     end
     local sx = (x-l)*256
     local sy = HEIGHT-(y-t+1)*256
     sprite(tile, sx, sy)
-    smooth()
+    --smooth()
     --fill(232, 226, 226, 255)
     --text(key, sx+128, sy+128)
 end
@@ -91,7 +115,8 @@ function draw()
     end
 
     -- Do your drawing here
-    translate(shift.x + drag.x, -shift.y + drag.y)
+    shift.x, shift.y = math.floor(WIDTH/2-(c.x-l)*256), math.floor(HEIGHT/2-(c.y-t)*256)
+    translate(shift.x, -shift.y)
     
     spriteMode(CORNER)
     local sx,sy
@@ -103,14 +128,13 @@ function draw()
     
 end
 
-function discard_tiles(z,l,r,t,b)
+function discard(z,l,r,t,b)
     for x=l,r do
         for y=t,b do
             local key = z.."/"..x.."/"..y
             tiles[key] = nil
         end
     end
-    collectgarbage()
 end
 
 function touched(touch)
@@ -140,50 +164,51 @@ function touched(touch)
     
     if tv > 200000 and touch.state == ENDED and z < 20 then
         tv = 0
-        discard_tiles(z,l,r,t,b)
+        discard(z,l,r,t,b)
+        collectgarbage()
         -- zoom in
         z = z + 1
         w,h = 2^z,2^z
-        l,r = l*2,r*2
-        l,r = math.floor((l+r)/2) - 3, math.floor((l+r)/2) + 2
-        t,b = t*2,b*2
-        t,b = math.floor((t+b)/2) - 3, math.floor((t+b)/2) + 2
+        c.x = c.x * 2
+        c.y = c.y * 2
+        l,r,t,b = getBounds(c)
+        return
         
     elseif tv < -200000 and touch.state == ENDED and z > 3 then
         tv = 0
-        discard_tiles(z,l,r,t,b)
+        discard(z,l,r,t,b)
+        collectgarbage()
         -- zoom out
         z = z - 1
         w,h = 2^z,2^z
-        l,r = math.floor(l/2), math.floor(r/2)
-        l,r = math.floor((l+r)/2) - 3, math.floor((l+r)/2) + 2
-        if l<0 then l,r = 0,5 end
-        t,b = math.floor(t/2), math.floor(b/2)
-        t,b = math.floor((t+b)/2) - 3, math.floor((t+b)/2) + 2
-        if t<0 then t,b = 0,4 end
+        c.x = c.x / 2
+        c.y = c.y / 2  
+        l,r,t,b = getBounds(c)
+        return
     end
     
     -- drag    
-    if touch.state ~= BEGAN then
-        drag.x = drag.x + touch.deltaX
-        drag.y = drag.y + touch.deltaY  
-        if drag.x <= -256 and r<w-1 then
-            discard_tiles(z,l,l,t,b)
-            drag.x,l,r = 0,l+1,r+1
-        elseif drag.x >= 256 and l>0 then
-            discard_tiles(z,r,r,t,b)
-            drag.x,l,r = 0,l-1,r-1
+    if touch.state == MOVING then       
+        c.x = c.x - touch.deltaX/256
+        c.y = c.y + touch.deltaY/256      
+        local nl = math.floor(c.x)-3
+        if nl>l then
+            discard(z,l,l,t,b)
+        elseif nl<l then
+            discard(z,r,r,t,b)
         end
-        if drag.y <= -256 and t>0 then
-            discard_tiles(z,l,r,b,b)
-            drag.y,t,b = 0,t-1,b-1
-        elseif drag.y >= 256 and b<h-1 then
-            discard_tiles(z,l,r,t,t)
-            drag.y,t,b = 0,t+1,b+1
+        l,r = nl,nl + 6
+        local nt = math.floor(c.y)-2
+        if nt>t then
+            discard(z,l,r,t,t)
+        elseif nt<t then
+            discard(z,l,r,b,b)
         end
+        t,b = nt,nt + 4
     end
     
     if touch.state == ENDED then
+        --tween(0.5, c, {x = c.x - 2*touch.deltaX/256, y = c.y + 2*touch.deltaY/256})
         tv = 0
     end
 end
