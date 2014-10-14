@@ -41,7 +41,7 @@ function clear(t)
     end
 end
 
-function draw_placeholder()
+function make_placeholder()
     local tile = image(256, 256)
     setContext(tile)
     smooth()
@@ -77,7 +77,7 @@ function draw()
     background(40, 40, 50)
 
     if not pt then
-        pt = draw_placeholder()
+        pt = make_placeholder()
     end
 
     scale(tscale)
