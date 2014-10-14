@@ -1,38 +1,39 @@
 -- Planet
 
-displayMode(OVERLAY)
+displayMode(FULLSCREEN)
 
 -- Use this function to perform your initial setup
 function setup()
-    print("Hello World!")
+    print("Hello Planet!")
     
     uri = "https://khms1.google.com/kh/v=159&x=%s&y=%s&z=%s"
     z = 3
     w,h = 2^z,2^z
     l,r = 1,6
-    t,b = 1,5
+    t,b = 2,5
     tiles = {}
     pt = nil
-    
-    l0,r0 = l,r
     
     shift = {x=WIDTH/2-(r-l+1)/2*256, y=HEIGHT/2-(b-t+1)/2*256}
     drag = {x=0, y=0}
     
-    --parameter.watch("shift.x")
-    --parameter.watch("shift.y")
-    --parameter.watch("drag.x")
-    --parameter.watch("drag.y")
     touches = {}
-    parameter.watch("str(touches)")
+    tv = 0
+    --parameter.watch("str(touches)")
+    --parameter.watch("tv")
+    --parameter.watch("bounds()")
 end
 
 function str(t)
     local tt = {}
     for k,v in pairs(t) do
-        tt[#tt + 1] = v
+        tt[#tt + 1] = v.id..","..v.x..","..v.y
     end
     return table.concat(tt,"\n")
+end
+
+function bounds()
+    return string.format("z=%s,l=%s,r=%s,t=%s,b=%s",z,l,r,t,b)
 end
 
 function clean(t)
@@ -74,8 +75,8 @@ function draw_tile(z, x, y)
     local sy = HEIGHT-(y-t+1)*256
     sprite(tile, sx, sy)
     smooth()
-    fill(232, 226, 226, 255)
-    text(key, sx+128, sy+128)
+    --fill(232, 226, 226, 255)
+    --text(key, sx+128, sy+128)
 end
 
 -- This function gets called once every frame
@@ -115,10 +116,51 @@ end
 function touched(touch)
     -- keep track of multiple touches
     if touch.state ~= ENDED then
-        touches[touch.id] = touch.id..","..touch.x..","..touch.y
+        touches[touch.id] = touch
     else
         touches[touch.id] = nil
         clean(touches)
+    end
+    
+    -- zoom in
+    local zt = {}
+    for k,v in pairs(touches) do
+        table.insert(zt, v)
+    end
+    if #zt == 2 and touch.state == MOVING then
+        local a, b = zt[1], zt[2]
+        local v1 = vec2(a.prevX, a.prevY)
+        local v2 = vec2(b.prevX, b.prevY)
+        local val = v1:distSqr(v2)
+        v1 = vec2(a.x, a.y)
+        v2 = vec2(b.x, b.y)
+        val = v1:distSqr(v2) - val
+        tv = tv + val 
+    end
+    
+    if tv > 200000 and touch.state == ENDED and z < 20 then
+        tv = 0
+        discard_tiles(z,l,r,t,b)
+        -- zoom in
+        z = z + 1
+        w,h = 2^z,2^z
+        l,r = l*2,r*2
+        l,r = math.floor((l+r)/2) - 3, math.floor((l+r)/2) + 2
+        t,b = t*2,b*2
+        t,b = math.floor((t+b)/2) - 3, math.floor((t+b)/2) + 2
+        
+    elseif tv < -200000 and touch.state == ENDED and z > 3 then
+        tv = 0
+        discard_tiles(z,l,r,t,b)
+        -- zoom out
+        z = z - 1
+        w,h = 2^z,2^z
+        l,r = math.floor(l/2), math.floor(r/2)
+        l,r = math.floor((l+r)/2) - 3, math.floor((l+r)/2) + 2
+        if l<0 then l,r = 0,5 end
+        t,b = math.floor(t/2), math.floor(b/2)
+        t,b = math.floor((t+b)/2) - 3, math.floor((t+b)/2) + 2
+        if t<0 then t,b = 0,4 end
     end
     
     -- drag    
@@ -139,6 +181,10 @@ function touched(touch)
             discard_tiles(z,l,r,t,t)
             drag.y,t,b = 0,t+1,b+1
         end
+    end
+    
+    if touch.state == ENDED then
+        tv = 0
     end
 end
 
