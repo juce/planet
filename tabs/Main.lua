@@ -10,7 +10,6 @@ function getBounds(c)
     return l,r,t,b
 end
 
--- Use this function to perform your initial setup
 function setup()
     print("Hello Planet!")
     
@@ -32,27 +31,7 @@ function setup()
     parameter.watch("c.y")
 end
 
-function str(t)
-    local tt = {}
-    for k,v in pairs(t) do
-        tt[#tt + 1] = v.id..","..v.x..","..v.y
-    end
-    return table.concat(tt,"\n")
-end
-
-function state()
-    return string.format("z=%s,c.x=%s,c.y=%s",z,c.x,c.y)
-end
-
-function num(t)
-    local c = 0
-    for k,v in pairs(t) do
-        c = c + 1
-    end
-    return c
-end
-
-function clean(t)
+function clear(t)
     local c = 0
     for k,v in pairs(t) do
         c = c + 1
@@ -92,9 +71,6 @@ function draw_tile(z, x, y)
     local sx = (x-l)*256
     local sy = HEIGHT/tscale-(y-t+1)*256
     sprite(tile, sx, sy)
-    --smooth()
-    --fill(232, 226, 226, 255)
-    --text(key, sx+128, sy+128)
 end
 
 function draw()
@@ -138,7 +114,7 @@ function touched(touch)
         touches[touch.id] = touch
     else
         touches[touch.id] = nil
-        clean(touches)
+        clear(touches)
     end
     
     -- check for pinch/expand gestures
