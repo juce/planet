@@ -12,5 +12,7 @@
 	<string>2015-05-17 16:52:52 +0000</string>
 	<key>Description</key>
 	<string>No description available</string>
+	<key>Icon</key>
+	<string>Icon.png</string>
 </dict>
 </plist>
