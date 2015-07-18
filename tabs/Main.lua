@@ -12,17 +12,17 @@ end
 
 function setup()
     print("Hello Planet!")
-    
-    uri = "https://khms1.google.com/kh/v=159&x=%s&y=%s&z=%s"
+
+    uri = "https://khm.google.com/kh/v=176&x=%s&y=%s&z=%s"
 
     z = 2
     w,h = 2^z,2^z
     c = {x=w/2, y=h/2}
     l,r,t,b = getBounds(c)
-    
+
     tiles = {}
     pt = nil
-    
+
     touches = {}
     tscale = 1.0
 
@@ -64,6 +64,8 @@ function draw_tile(z, x, y)
                 if tonumber(status) == 200 then
                     tiles[key] = data
                 end
+            end, function(err)
+                print("oops: "..err)
             end)
         end  
         tiles[key], tile = pt, pt
@@ -93,7 +95,7 @@ function draw()
             draw_tile(z,x,y)
         end
     end
-    
+
 end
 
 function discard(z,l,r,t,b)
@@ -116,7 +118,7 @@ function touched(touch)
         touches[touch.id] = nil
         clear(touches)
     end
-    
+
     -- check for pinch/expand gestures
     local zt = {}
     for k,v in pairs(touches) do
@@ -135,7 +137,7 @@ function touched(touch)
             tscale = math.max(0.5,math.min(2,tscale))
         end
     end
-    
+
     if tscale >= 2.0 and touch.state == ENDED and z < 19 then
         tscale = 1.0
         discard(z,l,r,t,b)
@@ -146,7 +148,7 @@ function touched(touch)
         c.y = c.y * 2
         l,r,t,b = getBounds(c)
         return
-        
+
     elseif tscale <= 0.5 and touch.state == ENDED and z > 0 then
         tscale = 1.0
         discard(z,l,r,t,b)
@@ -158,7 +160,7 @@ function touched(touch)
         l,r,t,b = getBounds(c)
         return
     end
-    
+
     -- drag    
     if touch.state == MOVING then       
         c.x = c.x - touch.deltaX/256
@@ -177,9 +179,10 @@ function touched(touch)
         end
         t,b = nt,nb
     end
-    
+
     if touch.state == ENDED then
         tscale = 1.0
     end
 end
+
 
