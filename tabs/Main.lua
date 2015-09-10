@@ -13,7 +13,7 @@ end
 function setup()
     print("Hello Planet!")
 
-    uri = "https://khm.google.com/kh/v=176&x=%s&y=%s&z=%s"
+    uri = "https://khm.google.com/kh/v=180&x=%s&y=%s&z=%s"
 
     z = 2
     w,h = 2^z,2^z
